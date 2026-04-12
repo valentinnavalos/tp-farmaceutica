@@ -10,8 +10,8 @@ para la consulta principal. La variante con --detalle incluye el
 medicamento estudiado mediante un $lookup adicional.
 
 Uso:
-    python -m mongodb.queries.d_ensayos_fase_iii
-    python -m mongodb.queries.d_ensayos_fase_iii --detalle
+    PYTHONPATH=. python3 -m mongodb.queries.d_ensayos_fase_iii
+    PYTHONPATH=. python3 -m mongodb.queries.d_ensayos_fase_iii --detalle
 """
 
 import argparse

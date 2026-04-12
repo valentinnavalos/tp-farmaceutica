@@ -8,7 +8,7 @@ La cadena de distribución está embebida en el documento del lote, por lo
 que basta un único findOne() — sin $lookup ni $graphLookup.
 
 Uso:
-    python -m mongodb.queries.a_trazabilidad LOT-2024-00451
+    PYTHONPATH=. python3 -m mongodb.queries.a_trazabilidad LOT-2024-00451
 """
 
 import json
@@ -35,7 +35,7 @@ def trazabilidad_lote(numero_lote: str) -> dict | None:
 
 def main():
     if len(sys.argv) < 2:
-        print("Uso: python -m mongodb.queries.a_trazabilidad <numero_lote>")
+        print("Uso: PYTHONPATH=. python3 -m mongodb.queries.a_trazabilidad <numero_lote>")
         sys.exit(1)
 
     numero_lote = sys.argv[1]

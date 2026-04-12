@@ -3,8 +3,8 @@ Inicializa las colecciones y los índices del modelo MongoDB farmacéutico.
 Ejecutar una sola vez antes de poblar la base de datos.
 
 Uso:
-    python mongodb/init_indexes.py
-    MONGO_URI=mongodb://user:pass@host:27017/farmaceutica python mongodb/init_indexes.py
+    PYTHONPATH=. python3 mongodb/init_indexes.py
+    MONGO_URI=mongodb://user:pass@host:27017/farmaceutica PYTHONPATH=. python3 mongodb/init_indexes.py
 """
 
 from pymongo import ASCENDING, DESCENDING

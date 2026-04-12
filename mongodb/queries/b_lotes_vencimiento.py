@@ -7,8 +7,8 @@ en distribuidores. Ordenados por fecha_vencimiento ascendente.
 Usa el índice compuesto idx_lotes_vencimiento_stock para el range scan.
 
 Uso:
-    python -m mongodb.queries.b_lotes_vencimiento
-    python -m mongodb.queries.b_lotes_vencimiento --dias 60
+    PYTHONPATH=. python3 -m mongodb.queries.b_lotes_vencimiento
+    PYTHONPATH=. python3 -m mongodb.queries.b_lotes_vencimiento --dias 60
 """
 
 import argparse

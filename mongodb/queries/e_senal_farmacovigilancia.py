@@ -10,8 +10,8 @@ en el último semestre. Clasifica el nivel de alerta:
 Usa el índice idx_ea_med_gravedad_fecha.
 
 Uso:
-    python -m mongodb.queries.e_senal_farmacovigilancia
-    python -m mongodb.queries.e_senal_farmacovigilancia --umbral 5
+    PYTHONPATH=. python3 -m mongodb.queries.e_senal_farmacovigilancia
+    PYTHONPATH=. python3 -m mongodb.queries.e_senal_farmacovigilancia --umbral 5
 """
 
 import argparse

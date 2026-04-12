@@ -6,7 +6,7 @@ el último año, agrupados por gravedad y país, con conteo de
 hospitalizaciones. Usa el índice idx_ea_med_gravedad_fecha.
 
 Uso:
-    python -m mongodb.queries.c_efectos_adversos <medicamento_id>
+    PYTHONPATH=. python3 -m mongodb.queries.c_efectos_adversos <medicamento_id>
 """
 
 import json
@@ -59,7 +59,7 @@ def efectos_adversos_resumen(medicamento_id: str) -> list:
 
 def main():
     if len(sys.argv) < 2:
-        print("Uso: python -m mongodb.queries.c_efectos_adversos <medicamento_id>")
+        print("Uso: PYTHONPATH=. python3 -m mongodb.queries.c_efectos_adversos <medicamento_id>")
         sys.exit(1)
 
     med_id = sys.argv[1]

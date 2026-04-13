@@ -53,7 +53,7 @@ tp-farmaceutica/
 ### 1. Clonar el Repositorio
 
 ```bash
-git clone <url-del-repositorio>
+git clone https://github.com/valentinnavalos/tp-farmaceutica.git
 cd tp-farmaceutica
 ```
 

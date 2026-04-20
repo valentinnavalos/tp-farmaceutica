@@ -104,10 +104,14 @@ def cargar_mongodb(colecciones: dict):
         name="idx_lotes_vencimiento_stock"
     )
     db.efectos_adversos.create_index(
-        [("medicamento_id", 1), ("gravedad", 1), ("fecha_reporte", -1)],
+        [("medicamento_id", 1), ("gravedad", 1), ("fecha", -1)],
         name="idx_ea_med_gravedad_fecha"
     )
-    print("  [OK] 3 índices creados")
+    db.ensayos_clinicos.create_index(
+        [("fase", 1), ("estado", 1)],
+        name="idx_ensayos_fase_estado"
+    )
+    print("  [OK] 4 índices creados")
     client.close()
 
 
@@ -173,8 +177,14 @@ def imprimir_resumen(colecciones_mongo: dict, stats_neo4j: dict):
 
     # Verificaciones de garantías
     print("\nGarantías del enunciado:")
+    from datetime import datetime, timedelta
+    from collections import Counter
+
     lotes = colecciones_mongo.get("lotes", [])
-    proximos = sum(1 for l in lotes if l.get("alertas", {}).get("proximo_vencimiento"))
+    hoy = datetime.now()
+    proximos = sum(1 for l in lotes
+                   if l.get("fecha_vencimiento") and (l["fecha_vencimiento"] - hoy).days < 90
+                   and l.get("estado_stock") in ["en_distribucion", "en_planta"])
     print(f"  Lotes próximos a vencer (<90d): {proximos} (mínimo 20)")
 
     ensayos = colecciones_mongo.get("ensayos_clinicos", [])
@@ -182,12 +192,10 @@ def imprimir_resumen(colecciones_mongo: dict, stats_neo4j: dict):
     print(f"  Ensayos fase III activos:        {fase3_activos} (mínimo 5)")
 
     ea = colecciones_mongo.get("efectos_adversos", [])
-    from datetime import datetime, timedelta
-    hace6m = datetime.now() - timedelta(days=180)
+    hace6m = hoy - timedelta(days=180)
     graves_recientes = [e for e in ea if e.get("gravedad") == "grave"
-                        and e.get("fecha_reporte") is not None
-                        and e.get("fecha_reporte") >= hace6m]
-    from collections import Counter
+                        and e.get("fecha") is not None
+                        and e["fecha"] >= hace6m]
     conteo_meds = Counter(e.get("medicamento_nombre") for e in graves_recientes)
     meds_señal = sum(1 for c in conteo_meds.values() if c > 3)
     print(f"  Medicamentos con señal (>3 EA graves semestre): {meds_señal} (mínimo {MEDS_CON_SEÑAL_FARMACOVIG})")
@@ -248,18 +256,20 @@ def main():
     rels_afecta     = gen.gen_relaciones_afecta()
     rels_estudia    = gen.gen_relaciones_estudia()
     rels_toma       = gen.gen_relaciones_toma(nodos_pac, rels_interactua)
+    rels_modifica   = gen.gen_relaciones_modifica_interaccion(rels_interactua)
 
     stats_neo4j = {
-        ":PrincipioActivo":   len(nodos_pa),
-        ":Medicamento":       len(nodos_med),
-        ":Patologia":         len(nodos_pat),
-        ":EnsayoClinico":     len(nodos_ensayo),
-        ":Paciente":          len(nodos_pac),
-        "[:CONTIENE]":        len(rels_contiene),
-        "[:INTERACTUA_CON]":  len(rels_interactua),
-        "[:AFECTA]":          len(rels_afecta),
-        "[:ESTUDIA]":         len(rels_estudia),
-        "[:TOMA]":            len(rels_toma),
+        ":PrincipioActivo":        len(nodos_pa),
+        ":Medicamento":            len(nodos_med),
+        ":Patologia":              len(nodos_pat),
+        ":EnsayoClinico":          len(nodos_ensayo),
+        ":Paciente":               len(nodos_pac),
+        "[:CONTIENE]":             len(rels_contiene),
+        "[:INTERACTUA_CON]":       len(rels_interactua),
+        "[:AFECTA]":               len(rels_afecta),
+        "[:ESTUDIA]":              len(rels_estudia),
+        "[:TOMA]":                 len(rels_toma),
+        "[:MODIFICA_INTERACCION]": len(rels_modifica),
     }
 
     # ── 3. Guardar archivos ──────────────────────────────────────────────────
@@ -277,7 +287,8 @@ def main():
     gen.exportar_cypher(
         str(cypher_path),
         nodos_pa, nodos_med, nodos_pat, nodos_ensayo, nodos_pac,
-        rels_contiene, rels_interactua, rels_afecta, rels_estudia, rels_toma
+        rels_contiene, rels_interactua, rels_afecta, rels_estudia, rels_toma,
+        rels_modifica
     )
     print(f"  [OK] carga_neo4j.cypher: {sum(stats_neo4j.values())} elementos")
 

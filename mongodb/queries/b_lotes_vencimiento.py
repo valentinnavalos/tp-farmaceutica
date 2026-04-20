@@ -1,70 +1,92 @@
 """
-Consulta (b) — Lotes próximos a vencer con stock.
+Consulta (b) — Lotes próximos a vencer con stock activo.
 
-Lista todos los lotes que vencen en menos de 90 días y aún tienen stock
-en distribuidores. Ordenados por fecha_vencimiento ascendente.
+Identifica todos los lotes de medicamentos con stock activo que vencen
+dentro de los próximos 90 días, ordenados por urgencia (días restantes).
 
-Usa el índice compuesto idx_lotes_vencimiento_stock para el range scan.
+El índice compuesto idx_lotes_vencimiento_stock permite al motor resolver
+el range scan sin escanear documentos fuera del rango.
 
 Uso:
     PYTHONPATH=. python3 -m mongodb.queries.b_lotes_vencimiento
     PYTHONPATH=. python3 -m mongodb.queries.b_lotes_vencimiento --dias 60
 """
 
-import argparse
-import json
+import sys
 from datetime import datetime, timedelta, timezone
-from bson import json_util
 
 from mongodb.connection import get_db
 
 
-def lotes_proximos_a_vencer(dias: int = 90) -> list:
+def lotes_proximos_vencer(dias: int = 90) -> list:
     db = get_db()
-    hoy = datetime.now(tz=timezone.utc)
-    limite = hoy + timedelta(days=dias)
+    ahora = datetime.now(timezone.utc)
+    limite = ahora + timedelta(days=dias)
 
-    cursor = db.lotes.find(
+    pipeline = [
         {
-            "fecha_vencimiento": {"$lte": limite, "$gte": hoy},
-            "estado_stock": {"$in": ["en_distribucion", "en_planta"]},
-            "cantidad_disponible_total": {"$gt": 0},
+            # Paso 1: Filtrado por fecha y stock.
+            # Busca lotes que vencen entre HOY y los proximos N dias
+            # y que aun tienen stock activo en distribuidores o en planta.
+            "$match": {
+                "fecha_vencimiento": {
+                    "$gte": ahora,
+                    "$lte": limite,
+                },
+                "estado_stock": {"$in": ["en_distribucion", "en_planta"]},
+                "cantidad_producida": {"$gt": 0},
+            }
         },
         {
-            "numero_lote": 1,
-            "medicamento_nombre": 1,
-            "fecha_vencimiento": 1,
-            "estado_stock": 1,
-            "cantidad_disponible_total": 1,
-            "cadena_distribucion.entidad_nombre": 1,
-            "cadena_distribucion.stock_actual": 1,
+            # Paso 2: Calculo dinamico de dias restantes.
+            # Proyecta el tiempo faltante para facilitar la toma de decisiones.
+            "$project": {
+                "_id": 0,
+                "numero_lote": 1,
+                "medicamento_nombre": 1,
+                "fecha_vencimiento": 1,
+                "estado_stock": 1,
+                "dias_para_vencer": {
+                    "$dateDiff": {
+                        "startDate": "$$NOW",
+                        "endDate": "$fecha_vencimiento",
+                        "unit": "day",
+                    }
+                },
+            }
         },
-    ).sort("fecha_vencimiento", 1)
+        {"$sort": {"dias_para_vencer": 1}},
+    ]
 
-    return list(cursor)
+    return list(db.lotes.aggregate(pipeline))
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--dias", type=int, default=90, help="Ventana en días (default: 90)")
-    args = parser.parse_args()
+    dias = 90
+    if "--dias" in sys.argv:
+        idx = sys.argv.index("--dias")
+        try:
+            dias = int(sys.argv[idx + 1])
+        except (IndexError, ValueError):
+            pass
 
-    resultados = lotes_proximos_a_vencer(args.dias)
-    print(f"\n=== Lotes que vencen en los próximos {args.dias} días con stock: {len(resultados)} ===\n")
+    resultados = lotes_proximos_vencer(dias)
 
-    for lote in resultados:
-        lote_json = json_util.loads(json_util.dumps(lote))
-        vencimiento = lote_json.get("fecha_vencimiento", {})
-        fecha_str = vencimiento.get("$date", "") if isinstance(vencimiento, dict) else str(vencimiento)
-        print(
-            f"  {lote_json['numero_lote']:20s}  "
-            f"{lote_json.get('medicamento_nombre', ''):30s}  "
-            f"vence: {fecha_str[:10]}  "
-            f"stock: {lote_json.get('cantidad_disponible_total', 0)}"
-        )
+    print(f"\n=== Lotes próximos a vencer (próximos {dias} días): {len(resultados)} ===\n")
 
     if not resultados:
-        print("  (sin resultados)")
+        print("  (sin lotes próximos a vencer con stock)")
+        return
+
+    print(f"  {'Lote':<20} {'Medicamento':<30} {'Días restantes':>15} {'Estado':<20}")
+    print("  " + "-" * 87)
+    for r in resultados:
+        print(
+            f"  {r['numero_lote']:<20} "
+            f"{r['medicamento_nombre']:<30} "
+            f"{r['dias_para_vencer']:>15} "
+            f"{r['estado_stock']:<20}"
+        )
 
 
 if __name__ == "__main__":

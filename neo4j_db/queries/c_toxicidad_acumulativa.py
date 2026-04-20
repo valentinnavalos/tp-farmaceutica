@@ -1,27 +1,26 @@
 """
 Consulta (c) — Toxicidad acumulativa en combinaciones de 3+ PA.
 
-Detecta tríos de principios activos que comparten la misma vía metabólica
-(mismas enzimas CYP) pero ningún par tiene interacción directa grave o
-contraindicada. El riesgo surge de la saturación enzimática acumulativa.
+Detecta combinaciones de 3 o más medicamentos que, aunque individualmente
+no están contraindicados de a pares, generan toxicidad acumulativa por
+compartir la misma vía metabólica (enzimas CYP).
 
-Por qué es mejor en grafo: la condición NOT (a)-[:rel]-(b) es un patrón
-nativo de Cypher evaluado como ausencia de arista. En SQL requiere un
-NOT EXISTS sobre un self-join, extremadamente difícil de optimizar.
+La condición NOT (pa1)-[:INTERACTUA_CON {severidad: 'grave'}]-(pa2) es
+nativa de Cypher: el motor la evalúa como ausencia de arista, no como
+una subconsulta. En SQL equivalente requeriría NOT EXISTS sobre un
+self-join, extremadamente difícil de optimizar.
 
 Uso:
     PYTHONPATH=. python3 -m neo4j_db.queries.c_toxicidad_acumulativa
-    PYTHONPATH=. python3 -m neo4j_db.queries.c_toxicidad_acumulativa --via hepatica
 """
 
-import argparse
+import sys
 from neo4j_db.connection import get_driver
 
 CYPHER = """
 MATCH (pa1:PrincipioActivo), (pa2:PrincipioActivo), (pa3:PrincipioActivo)
 WHERE pa1.via_metabolismo = pa2.via_metabolismo
   AND pa2.via_metabolismo = pa3.via_metabolismo
-  AND ($via IS NULL OR pa1.via_metabolismo = $via)
   AND id(pa1) < id(pa2) AND id(pa2) < id(pa3)
   AND NOT (pa1)-[:INTERACTUA_CON {severidad: 'grave'}]-(pa2)
   AND NOT (pa1)-[:INTERACTUA_CON {severidad: 'contraindicada'}]-(pa2)
@@ -34,35 +33,30 @@ MATCH (m2:Medicamento)-[:CONTIENE]->(pa2)
 MATCH (m3:Medicamento)-[:CONTIENE]->(pa3)
 WHERE m1 <> m2 AND m2 <> m3 AND m1 <> m3
 RETURN
-  pa1.nombre                              AS pa1,
-  pa2.nombre                              AS pa2,
-  pa3.nombre                              AS pa3,
-  pa1.via_metabolismo                     AS via_compartida,
-  collect(DISTINCT m1.nombre_comercial)   AS meds_con_pa1,
-  collect(DISTINCT m2.nombre_comercial)   AS meds_con_pa2,
-  collect(DISTINCT m3.nombre_comercial)   AS meds_con_pa3,
-  'toxicidad_acumulativa_' + pa1.via_metabolismo AS tipo_alerta
-LIMIT 50
+  pa1.nombre                            AS pa1,
+  pa2.nombre                            AS pa2,
+  pa3.nombre                            AS pa3,
+  pa1.via_metabolismo                   AS via_compartida,
+  collect(DISTINCT m1.nombre_comercial) AS meds_con_pa1,
+  collect(DISTINCT m2.nombre_comercial) AS meds_con_pa2,
+  collect(DISTINCT m3.nombre_comercial) AS meds_con_pa3
+LIMIT 20
 """
 
 
-def toxicidad_acumulativa(via: str | None = None) -> list:
+def toxicidad_acumulativa() -> list:
     driver = get_driver()
     with driver.session() as session:
-        result = session.run(CYPHER, via=via)
+        result = session.run(CYPHER)
         rows = [r.data() for r in result]
     driver.close()
     return rows
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--via", default=None, help="Filtrar por vía metabólica (ej: hepatica, renal, mixta)")
-    args = parser.parse_args()
+    rows = toxicidad_acumulativa()
 
-    rows = toxicidad_acumulativa(via=args.via)
-    filtro = f" — vía: {args.via}" if args.via else ""
-    print(f"\n=== Combinaciones con toxicidad acumulativa{filtro}: {len(rows)} ===\n")
+    print(f"\n=== Combinaciones con toxicidad acumulativa (vía metabólica compartida sin interacción directa grave): {len(rows)} ===\n")
 
     if not rows:
         print("  (sin combinaciones detectadas)")

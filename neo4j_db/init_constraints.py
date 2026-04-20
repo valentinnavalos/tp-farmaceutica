@@ -12,19 +12,14 @@ from neo4j_db.connection import get_driver
 # Constraints de unicidad — crean índice B-tree automáticamente
 CONSTRAINTS = [
     (
-        "med_mongo_id",
-        "FOR (m:Medicamento) REQUIRE m.mongo_id IS UNIQUE",
-        "Medicamento.mongo_id — puente con MongoDB",
+        "med_nombre",
+        "FOR (m:Medicamento) REQUIRE m.nombre_comercial IS UNIQUE",
+        "Medicamento.nombre_comercial — unicidad de nombre comercial",
     ),
     (
-        "pa_neo4j_id",
-        "FOR (pa:PrincipioActivo) REQUIRE pa.neo4j_node_id IS UNIQUE",
-        "PrincipioActivo.neo4j_node_id — ID legible para Cypher",
-    ),
-    (
-        "pa_mongo_id",
-        "FOR (pa:PrincipioActivo) REQUIRE pa.mongo_id IS UNIQUE",
-        "PrincipioActivo.mongo_id — puente con MongoDB",
+        "pa_nombre",
+        "FOR (pa:PrincipioActivo) REQUIRE pa.nombre IS UNIQUE",
+        "PrincipioActivo.nombre — unicidad del principio activo",
     ),
     (
         "pac_id",
@@ -34,7 +29,7 @@ CONSTRAINTS = [
     (
         "ensayo_codigo",
         "FOR (e:EnsayoClinico) REQUIRE e.codigo_protocolo IS UNIQUE",
-        "EnsayoClinico.codigo_protocolo — puente con MongoDB",
+        "EnsayoClinico.codigo_protocolo — identificador único de protocolo",
     ),
 ]
 
@@ -43,7 +38,7 @@ INDEXES = [
     (
         "idx_interaccion_severidad",
         "FOR ()-[i:INTERACTUA_CON]-() ON (i.severidad)",
-        "Consulta (d): filtrar interacciones por severidad grave/contraindicada",
+        "Consultas (a) y (d): filtrar interacciones por severidad grave/contraindicada",
     ),
     (
         "idx_pa_via_metabolismo",
@@ -53,7 +48,7 @@ INDEXES = [
     (
         "idx_med_estado",
         "FOR (m:Medicamento) ON (m.estado)",
-        "Consulta (a) y (e): filtrar medicamentos activos rápidamente",
+        "Consultas (a) y (e): filtrar medicamentos activos rápidamente",
     ),
 ]
 

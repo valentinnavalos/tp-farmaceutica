@@ -2,10 +2,10 @@
 Consulta (a) — Trazabilidad completa de un lote.
 
 Dado un número de lote, reconstruye el camino completo desde la planta
-de producción hasta los distribuidores y puntos de dispensación actuales.
+de fabricación hasta el último punto de dispensación.
 
-La cadena de distribución está embebida en el documento del lote, por lo
-que basta un único findOne() — sin $lookup ni $graphLookup.
+La cadena de distribución está embebida en el documento del lote,
+por lo que la consulta es O(1): un solo $match + $project sin JOINs.
 
 Uso:
     PYTHONPATH=. python3 -m mongodb.queries.a_trazabilidad LOT-2024-00451
@@ -18,19 +18,30 @@ from bson import json_util
 from mongodb.connection import get_db
 
 
+PIPELINE_TRAZABILIDAD = lambda numero_lote: [
+    {
+        # Paso 1: Filtrado por el identificador de negocio.
+        # Utiliza el indice unico definido sobre "numero_lote".
+        "$match": {"numero_lote": numero_lote}
+    },
+    {
+        # Paso 2: Transformacion y limpieza de salida.
+        # Selecciona solo los campos relevantes para el reporte de trazabilidad.
+        "$project": {
+            "_id": 0,
+            "lote": "$numero_lote",
+            "producto_id": "$medicamento_id",
+            "planta_origen": "$planta_produccion",
+            "historial_trazabilidad": "$cadena_distribucion",
+        }
+    },
+]
+
+
 def trazabilidad_lote(numero_lote: str) -> dict | None:
     db = get_db()
-    return db.lotes.find_one(
-        {"numero_lote": numero_lote},
-        {
-            "numero_lote": 1,
-            "medicamento_nombre": 1,
-            "fabricacion": 1,
-            "fecha_vencimiento": 1,
-            "cadena_distribucion": 1,
-            "cantidad_disponible_total": 1,
-        },
-    )
+    resultados = list(db.lotes.aggregate(PIPELINE_TRAZABILIDAD(numero_lote)))
+    return resultados[0] if resultados else None
 
 
 def main():

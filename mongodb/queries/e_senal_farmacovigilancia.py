@@ -2,103 +2,114 @@
 Consulta (e) — Señal de farmacovigilancia.
 
 Detecta medicamentos con más de 3 reportes de efectos adversos graves
-en el último semestre. Clasifica el nivel de alerta:
-  - CRITICO  : >= 10 reportes graves
-  - ALTO     : >= 6  reportes graves
-  - MODERADO : >  3  reportes graves
+en el último semestre. Clasifica la alerta en BAJA / MODERADA / CRITICA.
 
-Usa el índice idx_ea_med_gravedad_fecha.
+Usa $dateAdd/$expr para evaluar la ventana temporal dentro del motor.
+$switch clasifica automáticamente la urgencia.
 
 Uso:
     PYTHONPATH=. python3 -m mongodb.queries.e_senal_farmacovigilancia
     PYTHONPATH=. python3 -m mongodb.queries.e_senal_farmacovigilancia --umbral 5
 """
 
-import argparse
-from datetime import datetime, timedelta, timezone
-from bson import json_util
+import sys
 
 from mongodb.connection import get_db
+
+NIVEL_COLOR = {
+    "BAJA":     "\033[94m",
+    "MODERADA": "\033[93m",
+    "CRITICA":  "\033[91m",
+}
+RESET = "\033[0m"
 
 
 def senal_farmacovigilancia(umbral: int = 3) -> list:
     db = get_db()
-    hace_6_meses = datetime.now(tz=timezone.utc) - timedelta(days=180)
 
     pipeline = [
         {
+            # 1. Filtro dinamico: Ultimos 6 meses y gravedad "grave"
             "$match": {
                 "gravedad": "grave",
-                "fecha_reporte": {"$gte": hace_6_meses},
+                "$expr": {
+                    "$gte": [
+                        "$fecha",
+                        {"$dateAdd": {"startDate": "$$NOW", "unit": "month", "amount": -6}},
+                    ]
+                },
             }
         },
         {
+            # 2. Sumarizacion por entidad de medicamento
             "$group": {
                 "_id": "$medicamento_id",
-                "medicamento_nombre": {"$first": "$medicamento_nombre"},
-                "total_reportes_graves": {"$sum": 1},
-                "paises_afectados": {"$addToSet": "$pais_reporte"},
-                "lotes_implicados": {"$addToSet": "$lote_numero"},
+                "total": {"$sum": 1},
             }
         },
-        {"$match": {"total_reportes_graves": {"$gt": umbral}}},
-        {"$sort": {"total_reportes_graves": -1}},
         {
+            # 3. Umbral de senal de seguridad
+            "$match": {"total": {"$gt": umbral}}
+        },
+        {
+            # 4. Enriquecimiento de datos (join con medicamentos)
+            "$lookup": {
+                "from": "medicamentos",
+                "localField": "_id",
+                "foreignField": "_id",
+                "as": "med_info",
+            }
+        },
+        {
+            # 5. Categorizacion de riesgo y formato de salida
             "$project": {
-                "medicamento_nombre": 1,
-                "total_reportes_graves": 1,
-                "paises_afectados": 1,
-                "cantidad_lotes": {"$size": "$lotes_implicados"},
+                "_id": 0,
+                "medicamento": {"$arrayElemAt": ["$med_info.nombre_comercial", 0]},
+                "reportes_detectados": "$total",
                 "nivel_alerta": {
                     "$switch": {
                         "branches": [
-                            {
-                                "case": {"$gte": ["$total_reportes_graves", 10]},
-                                "then": "CRITICO",
-                            },
-                            {
-                                "case": {"$gte": ["$total_reportes_graves", 6]},
-                                "then": "ALTO",
-                            },
+                            {"case": {"$lte": ["$total", 5]}, "then": "BAJA"},
+                            {"case": {"$lte": ["$total", 10]}, "then": "MODERADA"},
                         ],
-                        "default": "MODERADO",
+                        "default": "CRITICA",
                     }
                 },
             }
         },
+        {"$sort": {"reportes_detectados": -1}},
     ]
 
     return list(db.efectos_adversos.aggregate(pipeline))
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--umbral", type=int, default=3, help="Mínimo de reportes graves (default: 3)"
-    )
-    args = parser.parse_args()
+    umbral = 3
+    if "--umbral" in sys.argv:
+        idx = sys.argv.index("--umbral")
+        try:
+            umbral = int(sys.argv[idx + 1])
+        except (IndexError, ValueError):
+            pass
 
-    resultados = senal_farmacovigilancia(umbral=args.umbral)
-    print(f"\n=== Señales de farmacovigilancia (últimos 6 meses, umbral > {args.umbral}): {len(resultados)} ===\n")
+    resultados = senal_farmacovigilancia(umbral)
 
-    COLORES = {"CRITICO": "\033[91m", "ALTO": "\033[93m", "MODERADO": "\033[94m", "RESET": "\033[0m"}
-
-    for med in resultados:
-        m = json_util.loads(json_util.dumps(med))
-        nivel = m.get("nivel_alerta", "MODERADO")
-        color = COLORES.get(nivel, "")
-        reset = COLORES["RESET"]
-        paises = ", ".join(m.get("paises_afectados", []))
-        print(
-            f"  {color}{nivel:8s}{reset}  "
-            f"{m.get('medicamento_nombre', ''):30s}  "
-            f"reportes: {m['total_reportes_graves']:3d}  "
-            f"lotes: {m.get('cantidad_lotes', 0):2d}  "
-            f"países: {paises}"
-        )
+    print(f"\n=== Señal de farmacovigilancia (umbral >{umbral} reportes graves en 6 meses): {len(resultados)} ===\n")
 
     if not resultados:
         print("  (sin señales detectadas)")
+        return
+
+    print(f"  {'Medicamento':<35} {'Reportes':>9}  {'Nivel alerta'}")
+    print("  " + "-" * 60)
+    for r in resultados:
+        nivel = r["nivel_alerta"]
+        color = NIVEL_COLOR.get(nivel, "")
+        print(
+            f"  {r['medicamento']:<35} "
+            f"{r['reportes_detectados']:>9}  "
+            f"{color}{nivel}{RESET}"
+        )
 
 
 if __name__ == "__main__":

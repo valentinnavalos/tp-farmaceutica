@@ -4,7 +4,7 @@ Ejecutar una sola vez antes de poblar la base de datos.
 
 Uso:
     PYTHONPATH=. python3 mongodb/init_indexes.py
-    MONGO_URI=mongodb://user:pass@host:27017/farmaceutica PYTHONPATH=. python3 mongodb/init_indexes.py
+    MONGO_URI=mongodb://user:pass@host:27017/farmaceutica_tp PYTHONPATH=. python3 mongodb/init_indexes.py
 """
 
 from pymongo import ASCENDING, DESCENDING
@@ -39,10 +39,16 @@ INDEXES = [
         "keys": [
             ("medicamento_id", ASCENDING),
             ("gravedad", ASCENDING),
-            ("fecha_reporte", DESCENDING),
+            ("fecha", DESCENDING),
         ],
         "options": {"name": "idx_ea_med_gravedad_fecha"},
         "description": "Farmacovigilancia por medicamento, gravedad y período (consultas c y e)",
+    },
+    {
+        "collection": "ensayos_clinicos",
+        "keys": [("fase", ASCENDING), ("estado", ASCENDING)],
+        "options": {"name": "idx_ensayos_fase_estado"},
+        "description": "Ensayos clínicos por fase y estado (consulta d)",
     },
 ]
 

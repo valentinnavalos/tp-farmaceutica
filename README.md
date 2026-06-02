@@ -69,7 +69,7 @@ cd tp-farmaceutica
 docker compose up -d
 
 # 3. Cargar datos de prueba (solo ejecutar la 1ra vez cuando aún no hay datos)
-make seed
+docker compose exec api python seed/generar_datos.py --all --redis-load
 ```
 
 ## Desarrollo

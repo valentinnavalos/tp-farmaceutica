@@ -15,6 +15,8 @@ Sistema de gestión de información farmacéutica con arquitectura **poliglota**
 - **Python 3.11+**
 - **Docker y Docker Compose**
 
+Es posible que al instalar Docker también pida instalar WSL 2.
+
 ## Estructura del Proyecto
 
 ```
@@ -80,7 +82,7 @@ Una vez que ya está en la compu y se quiere levantar el proyecto:
 # Con este comando se levanta todo
 docker compose up -d
 
-# Con este otro comando para todo el proyecto
+# Con este otro comando frena todo el proyecto
 docker compose down
 ```
 

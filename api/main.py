@@ -47,12 +47,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="TP Farmaceutica — API Poliglota",
-    description=(
-        "Capa de persistencia poliglota (MongoDB + Neo4j + Redis) "
-        "para el sistema de farmacovigilancia. TP2 — Ingeniería de Datos II."
-    ),
-    version="2",
+    title="TP Farmaceutica - API Poliglota",
     lifespan=lifespan,
 )
 

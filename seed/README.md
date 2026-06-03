@@ -7,36 +7,26 @@ seed/
 ├── datos_maestros.py    # PA, interacciones y patologías reales
 ├── generador_mongo.py   # Generador de documentos MongoDB
 ├── generador_neo4j.py   # Generador de nodos y relaciones Neo4j
+├── generador_redis.py   # Generador de datos Redis (alertas, streams, control de acceso)
 ├── generar_datos.py     # Script principal (entry point)
 └── output/
     ├── mongodb/         # JSONs para mongoimport
     └── neo4j/           # Script .cypher para cypher-shell
 ```
 
-## Uso rápido
+## Uso rápido (con Docker — flujo recomendado)
 ```bash
-pip install faker pymongo neo4j
+# Generar + cargar en las 3 bases (MongoDB + Neo4j + Redis)
+docker compose exec api python seed/generar_datos.py --all --redis-load
 
-# Solo generar archivos (sin conexión a motores)
-python generar_datos.py
+# Solo MongoDB y Neo4j (sin Redis)
+docker compose exec api python seed/generar_datos.py --all
 
-# Generar + cargar en MongoDB local
-python generar_datos.py --mongo-load
+# Solo MongoDB
+docker compose exec api python seed/generar_datos.py --mongo-load
 
-# Generar + cargar en Neo4j local
-python generar_datos.py --neo4j-load
-
-# Generar + cargar en ambos
-python generar_datos.py --all
-```
-
-## Configurar conexión
-Editar config.py:
-```python
-MONGO_URI  = "mongodb://localhost:27017"
-NEO4J_URI  = "bolt://localhost:7687"
-NEO4J_USER = "neo4j"
-NEO4J_PASS = "tu_password"
+# Solo Neo4j
+docker compose exec api python seed/generar_datos.py --neo4j-load
 ```
 
 ## Carga manual (alternativa)

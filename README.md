@@ -1,4 +1,4 @@
-# TP Farmacéutica - Base de Datos 2
+# TP Farmacéutica - Ingeniería de Datos II - Grupo 8
 
 Sistema de gestión de información farmacéutica con arquitectura **poliglota** (MongoDB + Neo4j + Redis), expuesto mediante una API REST construida con FastAPI y consumida desde un dashboard expuesto en "/dashboard".
 
@@ -70,12 +70,13 @@ tp-farmaceutica/
 ├── api/                       # API REST poliglota (TP2)
 │   ├── main.py                # FastAPI app
 │   ├── models.py              # Modelos Pydantic
-│   └── routers/
-│       ├── op1_panel.py               # GET  /panel
-│       ├── op2_prescripcion.py        # POST /prescripcion/verificar
-│       ├── op3_trazabilidad.py        # GET  /lote/{numero}/trazabilidad
-│       ├── op4_interacciones.py       # GET  /medicamento/{id}/interacciones
-│       └── op5_cierre_alerta.py       # POST /alerta/cerrar
+│   ├── routers/
+│   │   ├── op1_panel.py               # GET  /panel
+│   │   ├── op2_prescripcion.py        # POST /prescripcion/verificar
+│   │   ├── op3_trazabilidad.py        # GET  /lote/{numero}/trazabilidad
+│   │   ├── op4_interacciones.py       # GET  /medicamento/{id}/interacciones
+│   │   └── op5_cierre_alerta.py       # POST /alerta/cerrar
+│   └── static/                        # Dashboard web
 ├── seed/
 │   ├── config.py
 │   ├── generar_datos.py       # Script principal
@@ -83,6 +84,7 @@ tp-farmaceutica/
 │   ├── generador_mongo.py
 │   ├── generador_neo4j.py
 │   └── generador_redis.py     # Seed para Redis (TP2)
+├── run_demo_tp1.py            # Demo de las 10 consultas TP1
 ├── docker-compose.yml         # MongoDB + Neo4j + Redis + API
 ├── Dockerfile                 # Imagen de la API
 └── requirements.txt
@@ -202,7 +204,7 @@ PYTHONPATH=. python -m redis_db.queries.c_control_acceso
 ### Demo completo (TP1)
 
 ```bash
-PYTHONPATH=. python run_demo.py
+PYTHONPATH=. python run_demo_tp1.py
 ```
 
 ---

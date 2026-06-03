@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-run_demo.py — Ejecuta las 10 consultas del TP con IDs reales de las bases de datos.
+run_demo_tp1.py — Ejecuta las 10 consultas del TP1 con IDs reales de las bases de datos.
 
 Uso:
-    PYTHONPATH=. python run_demo.py
+    PYTHONPATH=. python run_demo_tp1.py
 
 Requiere que ambas bases estén corriendo con datos ya cargados.
 """
